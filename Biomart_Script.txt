@@ -1,0 +1,93 @@
+#BIOMART SCRIPT
+
+# if (!require("BiocManager", quietly = TRUE))
+#   install.packages("BiocManager")
+#
+# BiocManager::sinstall("biomaRt")
+
+#http://www.bioconductor.org/packages/release/bioc/vignettes/biomaRt/inst/doc/biomaRt.html#introduction
+# ###  strip components from the probe names
+# # IDlist <- sub('X', '',  featureNames(IDlist))
+# # ensembl_genes <- gsub("_at","",fdr_df$gene)
+# head(listAttributes(useDataset(dataset = "hsapiens_gene_ensembl", mart= useMart("ENSEMBL_MART_ENSEMBL", host    = "www.ensembl.org"))), 120)
+# head(listFilters(useDataset(dataset = "hsapiens_gene_ensembl", mart= useMart("ENSEMBL_MART_ENSEMBL", host    = "www.ensembl.org"))), 50)
+# ’www’, ’uswest’, ’useast’, ’asia’. If no mirror is specified, the primary site at www.ensembl.org will be used.
+
+#Clear the workspace
+
+rm(list = ls())
+
+#load the relevant packages, assuming they are already installed. If not already installed, use install.packages() function.
+
+library(biomaRt)
+
+#read in the ENST file
+
+IDlist <-
+  as.matrix(read.table("ENST_File.csv", sep = ",", header = TRUE))
+
+# connect to ensembl
+
+ensembl <-
+  useDataset(
+    dataset = "hsapiens_gene_ensembl",
+    mart = useMart("ENSEMBL_MART_ENSEMBL", host = "https://www.ensembl.org")
+  )
+attributes = listAttributes(ensembl)
+attributes[1:5, ]
+attributes
+filters = listFilters(ensembl)
+filters[1:50, ]
+
+# Note this will not work on ENST00000000233.10 BUT this will   ENST00000000233
+
+#transcripts
+annotated_IDs <-
+  getBM (
+    attributes = c(
+      "ensembl_transcript_id",
+      "ensembl_gene_id",
+      "external_gene_name",
+      "description",
+      "gene_biotype",
+      "transcript_biotype",
+      "transcript_tsl",
+      "transcript_gencode_basic",
+      "transcript_appris",
+      "transcript_is_canonical",
+      "transcript_length"
+    ),
+    filters = "ensembl_transcript_id",
+    values = IDlist,
+    mart = ensembl,
+    useCache = FALSE
+  )
+
+annotated_IDs <-
+  getBM (
+    attributes = c(
+      "ensembl_transcript_id",
+      "ensembl_gene_id",
+      "external_gene_name",
+      "description",
+      "gene_biotype",
+      "transcript_biotype",
+      "affy_hg_u133_plus_2"
+    ),
+    filters = "affy_hg_u133_plus_2",
+    values = IDlist,
+    mart = ensembl,
+    useCache = FALSE
+  )
+
+filename <- 'Filename'
+write.table (
+  annotated_IDs,
+  file = paste(filename, ".csv"),
+  sep = ",",
+  quote = T,
+  row.names = FALSE,
+  col.names = TRUE
+)
+
+#END OF BIOMART SCRIPT
