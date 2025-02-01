@@ -1,3 +1,6 @@
+###The Fisher’s test script is designed to perform a Fisher’s Exact Test for associations between gene lists by comparing pairs of lists. The function “perform_fishers_test” creates a contingency table for each pair and then calculates the p-value using Fisher’s Exact Test. For each pair, Fisher’s Exact Test will return a p-value: if the p-value is below 0.05, it suggests a statistically significant association while a p-value above the threshold indicates no significant association, implying any overlap could be due to random chance, therefore retaining the null hypothesis of independence. ###
+
+
 #ANOVA SCRIPT
 
 #Clear the workspace
