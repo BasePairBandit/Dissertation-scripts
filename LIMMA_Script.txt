@@ -1,0 +1,179 @@
+#LIMMA SCRIPT
+
+#Clear the workspace
+
+rm(list = ls())
+
+#load the relevant packages,                                      
+    assuming they are already installed.If not already installed, 
+    use install.packages() function.
+
+        library(limma) library(dplyr) library(data.table)
+            library(EnhancedVolcano) library(tidyverse) library(ggrepel)
+                library(RColorBrewer) library(ggplot2) library(pheatmap)
+
+#Set up the working directory
+
+                    setwd("Enter_your_file_path_here")
+
+#Reading the expression_data and the phenotype data
+
+                        expression_data <
+    -as.data.frame(read.table("Expression_data.csv", sep = ",", row.names = 1,
+                              header = TRUE)) phenotype_data <
+    -as.data.frame(read.table("Phenotype_data.csv", sep = ",", row.names = 1,
+                              header = TRUE))
+
+#REMOVE SAMPLES WITH MISSING VALUES
+
+         phenotype_data <
+    -phenotype_data[!is.na(phenotype_data$AVE_BL_vo2max_rel), ]
+
+#select the correct samples and ensure same order for both files
+
+    ID_index1 < -phenotype_data expression_data <
+    -t(expression_data) rownames_ID_index1 < -rownames(ID_index1) idx1 <
+    -match(rownames_ID_index1, rownames(expression_data))
+        head(idx1) expression_data < -t((expression_data[idx1, ]))
+                                         head(expression_data [1:5, 1:5])
+
+#Defin a design matrix and select covariates
+
+                                             design <
+    -model.matrix(~AVE_BL_vo2max_rel + Age + BMI, data = phenotype_data)
+         Primary_phenotype = "AVE_BL_vo2max_rel"
+#Covariate_list = "Sex+VO2_kg+Age+BMI+BL_VO2max+BL_BMI"
+    Covariate_list =
+        "Age + BMI " design #check design
+
+#Construct the contrast matrix for comparison or trend wishing to study
+
+            contrasts <
+            -makeContrasts(AVE_BL_vo2max_rel,
+                           levels = colnames(design)) contrasts #check contrasts
+
+#Fitting a linear model to the expression data
+
+            fit1 < -lmFit(object = expression_data, design = design) fit2 <
+            -contrasts.fit(fit = fit1, contrasts = contrasts)
+
+#eBayes is central to the limma method 
+    its is the implementation of an empirical Bayes estimation of variance
+#by borrowing information across \
+    genes.Originally designed for small samples sizes.
+
+                 fit2 <
+            -eBayes(fit2,
+                    robust = TRUE) #robust is critical to deal with very high
+        or very low variance genes
+
+               topTable <
+               -topTable(fit2, coef = Primary_phenotype, adjust = 'BH',
+                         sort.by = "B", n = Inf)
+
+                    write.table(as.data.frame(topTable),
+                                file = paste0(Primary_phenotype, Covariate_list,
+                                              "Results.csv"),
+                                sep = ",", quote = T, row.names = TRUE,
+                                col.names = TRUE)
+
+#Filter topTable for adjusted p - values less than 0.05
+
+                        significant_rows < -topTable$adj.P.Val <
+               0.05 significant_topTable <
+               -topTable[significant_rows, ]
+
+#Write the filtered topTable to a CSV file
+
+                write.table(as.data.frame(significant_topTable),
+                            file = paste0(Primary_phenotype, Covariate_list,
+                                          "Significant_Results.csv"),
+                            sep = ",", quote = TRUE, row.names = TRUE,
+                            col.names = TRUE)
+
+                    topTable$log2FC <
+               -topTable$logFC /
+                   log(2)
+
+#MA plot.
+
+                       limma::plotMA(fit2, coef = Primary_phenotype, )
+                           abline(h = 0, col = "red", lty = 2)
+
+#Using ggplot to plot the differential expression
+
+                               topTable$Diff_expressed <
+               -'No' topTable$Diff_expressed[topTable$log2FC > 0.0 &
+                                             topTable$P.Value < 0.05] <
+               -'Up' topTable$Diff_expressed[topTable$log2FC < 0.0 &
+                                             topTable$P.Value < 0.05] <
+               -'Down'
+
+               Genesymbols <
+               -read.csv(
+                   "LIST_31.4K_MEG_ENST_Iron_Muscle_UL-134_files_GC_Muscle_CDF_"
+                   "All_1-1K_cv_0.3_i_8_Grch38_gencode43_transcript.csv")
+
+                    topTable$ENST < -rownames(topTable)
+
+                                        topTable <
+               -merge(topTable, Genesymbols, by = "ENST",
+                      all.x = TRUE) #Merged the Gene_Symbols to the toptable
+
+               Top100DEGs <
+               -head(topTable[order(topTable$P.Value), 'Gene_Symbol'],
+                     100) #Extracted the 20 genes from toptable based on p.value
+
+                topTable$delabel <
+               -ifelse(topTable$Gene_Symbol % in % Top100DEGs,
+                       topTable$Gene_Symbol, NA) #labeling the top20 genes only.
+
+                   ggplot(topTable,
+                          aes(x = log2FC, y = -log10(adj.P.Val),
+                              col = Diff_expressed, shape = Diff_expressed)) +
+                   geom_vline(xintercept = c(-0.02, 0.02), col = 'black',
+                              linetype = 'dashed') +
+                   geom_hline(yintercept = c(1.3), col = 'gray',
+                              linetype = 'dashed') +
+                   geom_point(size = 2, alpha = 0.8, stroke = 0.5) +
+                   geom_label_repel(data = topTable, aes(label = delabel),
+                                    box.padding = unit(0.3, "lines"),
+                                    box.color = "black",
+                                    box.fill = alpha("white", 0.5),
+                                    max.overlaps = Inf, size = 4,
+                                    color = "black") +
+                   scale_colour_manual(values = c("firebrick", "grey",
+                                                  "steelblue"),
+                                       labels = c("Upregulated",
+                                                  "Not significant",
+                                                  "Downregulated")) +
+                   scale_shape_manual(values = c(21, 24, 24),
+                                      labels = c("Upregulated",
+                                                 "Not significant",
+                                                 "Downregulated")) +
+                   ggtitle('Top 200 genes - BMI_Age_As_Covariate model') +
+                   labs(color = "Expression",
+                        title = "BMI_Age_As_Covariate model",
+                        x = "log2(fold change)",
+                        y = "-log10(adjusted P-value)") +
+                   theme_bw() +
+                   theme(panel.border = element_rect(colour = "black",
+                                                     fill = NA, size = 0.5),
+                         panel.grid.minor = element_blank(),
+                         panel.grid.major = element_blank())
+
+#ggplot(topTable, aes(x = log2FC, y = -log10(adj.P.Val), col = Diff_expressed, \
+                      label = delabel)) +
+                       geom_vline(xintercept = c(-0.02, 0.02), col = 'black',
+                                  linetype = 'dashed') +
+                   geom_hline(yintercept = c(1.3), col = 'gray',
+                              linetype = 'dashed') +
+                   geom_point(size = 2) +
+                   scale_colour_manual(values = c("#00AFBB", "grey", "#bb0c00"),
+                                       labels = c("Downregulated",
+                                                  "Not significant",
+                                                  "Upregulated")) +
+                   ggtitle('Top 200 genes - BMI model') +
+                   geom_text_repel(max.overlaps = Inf) +
+                   labs(color = "Expression")
+#END of LIMMA Script
