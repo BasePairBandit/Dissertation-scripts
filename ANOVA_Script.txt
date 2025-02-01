@@ -1,0 +1,426 @@
+#ANOVA SCRIPT
+
+#Clear the workspace
+
+rm(list = ls())
+
+#load the relevant packages, assuming they are already installed. If not already installed, use install.packages() function.
+
+library(data.table)
+library(dplyr)
+library(multtest)
+
+setwd("Enter_your_file_path_here")
+
+## Read in the expression data, samples in columns and genes as rows
+
+data <-
+  read.table(
+    "Expression_data.csv",
+    sep = ",",
+    header = TRUE,
+    row.names = 1,
+    check.names = FALSE
+  )
+head(data[1:5, 1:5])
+# Data <- log2(Data)
+data <- t(data)
+
+# select the correct samples
+
+ID_index <-
+  as.matrix(read.table("Phenotype_data.csv", sep = ",", header = TRUE))
+idx <- match(as.character(ID_index[, 1]), rownames(data))
+head(idx)
+data <- t(data[idx, ])
+
+ps_index <-
+  read.table(
+    "LIST_31.4K_MEG_ENST_Iron_Muscle_UL-134_files_GC_Muscle_CDF_All_1-1K_cv_0.3_i_8_Grch38_gencode43_transcript.csv",
+    sep = ",",
+    header = TRUE
+  ) # list of samples
+psx <- match(as.character(ps_index[, 1]), rownames(data))
+Subsetdata <- data[psx, ]
+data <- as.matrix(Subsetdata)
+
+filenameUni <- 'n45_Pheno_MP_AVE_BL_vo2max_rel_x_BMI_Age_unimodal'
+filenameUniPDF <-
+  'n45_Pheno_MP_AVE_BL_vo2max_rel_x_BMI_Age_unimodal.pdf'
+
+VO2Anot <-
+  as.matrix(read.table(
+    "Phenotype_data.csv",
+    sep = ",",
+    header = TRUE,
+    row.names = 1
+  ))
+VO2Anot <- as.data.frame(VO2Anot)
+VO2Anot$Age <- as.numeric(VO2Anot$Age)
+non_numeric_Age <- VO2Anot[is.na(VO2Anot$Age),]
+VO2Anot$BMI <- as.numeric(VO2Anot$BMI)
+non_numeric_BMI <- VO2Anot[is.na(VO2Anot$BMI),]
+VO2Anot$AVE_BL_vo2max_rel <-
+  as.numeric(VO2Anot$AVE_BL_vo2max_rel)
+non_numeric_AVE_BL_vo2max_rel <-
+  VO2Anot[is.na(VO2Anot$AVE_BL_vo2max_rel),]
+
+###
+### issue with names e.g  contain e.g. "(", ")" and "-". These are replaced by "_"
+# modRow <- rownames(VO2Anot)
+# modRow <- gsub(modRow, pattern="(", replacement="_", fixed=TRUE)
+# modRow <- gsub(modRow, pattern=")", replacement="_", fixed=TRUE)
+# modRow <- gsub(modRow, pattern="-", replacement="_", fixed=TRUE)
+# rownames(VO2Anot) <- modRow
+
+### DATA AND ANOTATION MUST BE IDENTICAL IN TERMS OF WHICH SAMPLES ARE THERE AND THEIR ORDER
+# mpOnly <- grep(rownames(VO2Anot), pattern="LVL")   ### Change "" study ID change here
+# VO2Anot <- VO2Anot[mpOnly,] ## Selects samples
+# data <- data[,rownames(VO2Anot)]  ## ensures data contains the same samples and same order as phenotype file
+###
+
+# model used for the multivariate analysis
+
+myModel <- "AVE_BL_vo2max_rel*BMI*Age"
+
+#This is a function to adjust P values
+
+multCor <- function(pVec, corMethod = "BH") {
+  library(multtest)
+  tmpAdj <- mt.rawp2adjp(as.vector(pVec), proc = corMethod)
+  returnObj <- as.vector(tmpAdj$adjp[order(tmpAdj$index), 2])
+  return(returnObj)
+}
+
+
+#first univariate analysis and plot unimodal data.
+
+plotUni <-
+  function(inData = NULL,
+           pdfName = filenameUniPDF,
+           VO2Data = NULL) {
+    myNames <- rownames(inData)
+    pdf(
+      pdfName,
+      width = 12,
+      height = 12,
+      pointsize = 1 / 300
+    )
+    par(mfrow = c(3, 2), cex = 2)
+    myOutStats <- c()
+    for (tmpId in myNames) {
+      ##check anotation and data follows the same order
+      VO2Data <- VO2Data[colnames(inData), ]
+      
+      plot(
+        x = inData[tmpId, ],
+        y = VO2Data[, "AVE_BL_vo2max_rel"],
+        pch = 16,
+        ylab = "AVE_BL_vo2max_rel",
+        xlab = "Gene expression",
+        main = tmpId
+      )
+      ##run regressions for all data
+      
+      lm <- lm(VO2Data[, "AVE_BL_vo2max_rel"] ~ inData[tmpId, ])
+      lmanova <- anova(lm)
+      
+      ##get positions for lines and plot these
+      minX <- min(inData[tmpId, ])
+      maxX <- max(inData[tmpId, ])
+      minY <- lm$coefficients[1] + (minX * lm$coefficients[2])
+      maxY <- lm$coefficients[1] + (maxX * lm$coefficients[2])
+      lines(
+        x = c(minX, maxX),
+        y = c(minY, maxY),
+        col = 1,
+        lwd = 2
+      )
+      
+      c2R <-
+        cor(inData[tmpId,], VO2Data[, "AVE_BL_vo2max_rel"], use = "pairwise.complete.obs")
+      coefDet <-
+        cor(inData[tmpId,], VO2Data[, "AVE_BL_vo2max_rel"], use = "pairwise.complete.obs") ^
+        2
+      c2Slope <- lm$coefficients[2]
+      
+      ##print stats
+      legend("top", cex = 0.6, c(paste0("lm p: ", signif(
+        lmanova[1, 5], digits = 2
+      )), paste0("R2: ", signif(
+        coefDet, digits = 2
+      ))))
+      tmpStats <- c(lmanova[1, 5], c2R, coefDet, c2Slope)
+      
+      ## Next BMI
+      plot(
+        x = inData[tmpId, ],
+        y = VO2Data[, "BMI"],
+        pch = 16,
+        ylab = "BMI",
+        xlab = "Gene expression",
+        main = tmpId
+      )
+      ##run regressions for all data
+      
+      lm <- lm(VO2Data[, "BMI"] ~ inData[tmpId, ])
+      lmanova <- anova(lm)
+      ##get positions for lines and plot these
+      minX <- min(inData[tmpId, ])
+      maxX <- max(inData[tmpId, ])
+      minY <- lm$coefficients[1] + (minX * lm$coefficients[2])
+      maxY <- lm$coefficients[1] + (maxX * lm$coefficients[2])
+      lines(
+        x = c(minX, maxX),
+        y = c(minY, maxY),
+        col = 1,
+        lwd = 2
+      )
+      
+      c2R <-
+        cor(inData[tmpId,], VO2Data[, "BMI"], use = "pairwise.complete.obs")
+      coefDet <-
+        cor(inData[tmpId,], VO2Data[, "BMI"], use = "pairwise.complete.obs") ^
+        2
+      c2Slope <- lm$coefficients[2]
+      
+      ##print stats
+      legend("top", cex = 0.6, c(paste0("lm p: ", signif(
+        lmanova[1, 5], digits = 2
+      )), paste0("R2: ", signif(
+        coefDet, digits = 2
+      ))))
+      
+      ##collect stats
+      tmpStats <- c(tmpStats, lmanova[1, 5], c2R, coefDet, c2Slope)
+      
+      #############################
+      myOutStats <- rbind(myOutStats, c(tmpStats))
+    }
+    dev.off()
+    
+    rownames(myOutStats) <- rownames(inData)
+    colnames(myOutStats) <-
+      c(
+        "AVE_BL_vo2max_rel_p",
+        "AVE_BL_vo2max_rel_R",
+        "AVE_BL_vo2max_rel_R2",
+        "AVE_BL_vo2max_rel_slope",
+        "BMI_p",
+        "BMI_R",
+        "BMI_R2",
+        "BMI_slope"
+      )
+    
+    
+    ##Add fdrs
+    AVE_BL_vo2max_relFdr <-
+      multCor(myOutStats[, "AVE_BL_vo2max_rel_p"])
+    BMIFdr <- multCor(myOutStats[, "BMI_p"])
+    myOutStats <-
+      cbind(
+        myOutStats[, "AVE_BL_vo2max_rel_p"],
+        AVE_BL_vo2max_relFdr,
+        myOutStats[, c("AVE_BL_vo2max_rel_R",
+                       "AVE_BL_vo2max_rel_R2",
+                       "AVE_BL_vo2max_rel_slope")],
+        myOutStats[, "BMI_p"],
+        BMIFdr,
+        myOutStats[, c("BMI_R", "BMI_R2", "BMI_slope")]
+      )
+    
+    colnames(myOutStats) <-
+      c(
+        "AVE_BL_vo2max_rel_p",
+        "AVE_BL_vo2max_rel_fdr",
+        "AVE_BL_vo2max_rel_R",
+        "AVE_BL_vo2max_rel_R2",
+        "AVE_BL_vo2max_rel_slope",
+        "BMI_p",
+        "BMI_fdr",
+        "BMI_R",
+        "BMI_R2",
+        "BMI_slope"
+      )
+    
+    
+    
+    return (myOutStats)
+  }
+
+
+#multivariate analysis
+
+unimodalMulti <-
+  function(inData = NULL,
+           VO2Data = NULL,
+           formula = myModel) {
+    myNames <- rownames(inData)
+    
+    statsCollect <- c()
+    coefCollect <- c()
+    R2Collect <- c()
+    for (tmpId in myNames) {
+      tmpData <- cbind(inData[tmpId, ], VO2Data[, ])
+      ##need to remove data with NAs for any of the parameters...
+      naSum <- apply(is.na(tmpData), 1, sum)
+      tmpData <- tmpData[naSum == 0, ]
+      
+      colnames(tmpData)[1] <- "exp"
+      modFormula <- paste0("exp~", formula)
+      tmpData <- as.data.frame(tmpData)
+      attach(tmpData)
+      tmpDataLm <- lm(as.formula(modFormula))
+      detach(tmpData)
+      tmpDataLmanova <- anova(tmpDataLm)
+      statsCollect <- rbind(statsCollect, tmpDataLmanova[, 5])
+      coefCollect <- rbind(coefCollect, tmpDataLm$coefficients)
+      
+      ##Calculate R2 from sums of squares
+      ##Will do this stepwise to continuously reduce the total sums of squares by the part already accounted for
+      totalSoS <- sum(tmpDataLmanova[, 2])
+      tmpR2 <- c()
+      for (row in 1:c(nrow(tmpDataLmanova) - 1)) {
+        tmpR2 <- c(tmpR2, tmpDataLmanova[row, 2] / totalSoS)
+        ##This is the stepwise reduction of the SoS...
+        totalSoS <- totalSoS - tmpDataLmanova[row, 2]
+      }
+      
+      R2Collect <- rbind(R2Collect, c(tmpR2, NA))
+      
+    }
+    
+    colnames(statsCollect) <- rownames(tmpDataLmanova)
+    colnames(coefCollect) <- names(tmpDataLm$coefficients)
+    rownames(statsCollect) <- rownames(coefCollect) <- myNames
+    
+    
+    statsCollectFdr <- apply(statsCollect, 2, multCor)
+    rownames(statsCollectFdr) <- rownames(statsCollect)
+    
+    #get the Rs
+    RCollect <- sqrt(R2Collect)
+    RCollect[, 1:c(ncol(RCollect) - 1)] <-
+      RCollect[, 1:c(ncol(RCollect) - 1)] * sign(coefCollect[, 2:ncol(coefCollect)]) ##Tricky need to exclude the intercept and aviod the resid column
+    rownames(R2Collect) <-
+      rownames(RCollect) <- rownames(statsCollect)
+    colnames(R2Collect) <-
+      colnames(RCollect) <- colnames(statsCollect)
+    
+    
+    outList <- list(
+      "statsP" = statsCollect,
+      "statsFDR" = statsCollectFdr,
+      "coefs" = coefCollect,
+      "R" = RCollect,
+      "R2" = R2Collect
+    )
+    
+    return(outList)
+    
+  }
+
+#Unimodal analysis
+
+myUnimodalUnivariate <- plotUni(inData = data, VO2Data = VO2Anot)
+myUnimodalMultiVarOut <- unimodalMulti(inData = data, VO2Data = VO2Anot)
+
+unimodalMultiStatsP <- myUnimodalMultiVarOut$statsP
+unimodalMultiStatsFDR <- myUnimodalMultiVarOut$statsFDR
+uniModalMultiCoefs <- myUnimodalMultiVarOut$coefs
+uniModalMultiR <- myUnimodalMultiVarOut$R
+
+#Write output tables for unimodal analysis
+
+#univariate output
+
+write.table(
+  unimodalMultiStatsP,
+  file = paste0(filenameUni, "_multiStatsP.csv"),
+  sep = ",",
+  quote = TRUE,
+  row.names = TRUE,
+  col.names = TRUE
+)
+write.table(
+  myUnimodalUnivariate,
+  file = paste0(filenameUni, "_univariate.csv"),
+  sep = ",",
+  quote = T,
+  row.names = TRUE,
+  col.names = TRUE
+)
+
+## multivariate outputs
+
+write.table(
+  unimodalMultiStatsP,
+  file = paste0(filenameUni, "_multiStatsP.csv"),
+  sep = ",",
+  quote = T,
+  row.names = TRUE ,
+  col.names = TRUE
+)
+write.table(
+  uniModalMultiCoefs,
+  file = paste0(filenameUni, "_multiCoefs.csv"),
+  sep = ",",
+  quote = T,
+  row.names = TRUE ,
+  col.names = TRUE
+)
+write.table(
+  uniModalMultiR,
+  file = paste0(filenameUni, "_multiR.csv"),
+  sep = ",",
+  quote = T,
+  row.names = TRUE ,
+  col.names = TRUE
+)
+write.table(
+  unimodalMultiStatsFDR,
+  file = paste0(filenameUni, "_multiStatsFDR.csv"),
+  sep = ",",
+  quote = T,
+  row.names = TRUE ,
+  col.names = TRUE
+)
+
+#Extracting the significant ENSTs from univariate output
+
+# Set threshold for p-value
+
+p_value_threshold <- 0.05
+
+# Extract p-values from univariate analysis
+
+p_values_uni <-
+  myUnimodalUnivariate[, c("AVE_BL_vo2max_rel__p", "BMI_p")]
+
+# Adjust p-values for multiple testing using FDR correction
+
+fdr_adjusted_p_values <-
+  apply(p_values_uni, 2, p.adjust, method = "fdr")
+
+# Filter genes based on FDR-adjusted p-value
+
+significant_genes_uni <-
+  rownames(myUnimodalUnivariate)[fdr_adjusted_p_values < p_value_threshold]
+
+# Print significant genes
+
+cat(
+  "Significantly associated genes based on FDR-adjusted p-value threshold:",
+  length(significant_genes_uni),
+  "\n"
+)
+
+# Write significant genes to file
+
+write.table(
+  significant_genes_uni,
+  file = "significant_genes_univariate.txt",
+  sep = "\t",
+  quote = FALSE
+)
+#END OF ANOVA SCRIPT
