@@ -1,0 +1,34 @@
+#subset script
+
+rm(list = ls())
+
+# read the expression data & check if log2 & then calculate stats and write out
+Data <-
+  read.table(
+    "Input_expression_data.csv",
+    sep = ",",
+    header = TRUE,
+    row.names = 1,
+    check.names = FALSE
+  )
+head(Data[1:5, 1:5])
+Data <- t(Data)
+
+ID_index <-
+  read.table("Input_phenotype_data.csv",
+             sep = ",",
+             header = TRUE)
+idx1 <- match(as.character(ID_index[, 2]), rownames(Data))
+idx1 # check for NA's
+Data1 <- t((Data[idx1, ]))
+
+New_filename <-
+  'Filename'
+write.table (
+  Data1,
+  file = paste(New_filename, ".csv"),
+  sep = ",",
+  row.names = TRUE,
+  col.names = TRUE
+)
+#END OF subset SCRIPT
