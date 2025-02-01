@@ -1,0 +1,103 @@
+# Fisher’s exact script
+# Provided data
+total_genes <- 38618          # Total gene universe
+blood_size <- 206             # Blood list size
+muscle_size <- 2339           # Muscle list size
+GWAS_CVD_size <- 3606     # GWAS list size
+gwas_vo2max_size <- 101       #GWAS_Vo2max_SNP list size
+
+# Overlaps between lists
+overlap_blood_muscle <- 128
+overlap_muscle_GWAS_CVD <- 293
+overlap_blood_GWAS_CVD <- 30
+overlap_blood_GWAS_CVD_vo2max_snp <-
+  20    # Overlap between Blood and GWAS_Vo2max_SNP
+overlap_muscle_GWAS_CVD_vo2max_snp <-
+  5     # Overlap between Muscle and GWAS_Vo2max_SNP
+overlap_gwas_gwas_vo2max_snp <-
+  20              # Overlap between GWAS and GWAS_Vo2max_SNP
+
+# Function to create a contingency table and perform Fisher's test
+perform_fishers_test <-
+  function(size_list1,
+           size_list2,
+           overlap,
+           total_genes) {
+    # Calculate only-in counts and neither count
+    only_in_list1 <- size_list1 - overlap
+    only_in_list2 <- size_list2 - overlap
+    neither <- total_genes - (only_in_list1 + only_in_list2 + overlap)
+    
+    # Create contingency table
+    contingency_table <-
+      matrix(c(overlap, only_in_list1, only_in_list2, neither), nrow = 2)
+    colnames(contingency_table) <- c("In List 2", "Not in List 2")
+    rownames(contingency_table) <- c("In List 1", "Not in List 1")
+    
+    # Perform Fisher's exact test
+    test_result <- fisher.test(contingency_table)
+    
+    return(list("table" = contingency_table, "p_value" = test_result$p.value))
+  }
+
+# Perform Fisher's exact test for each pair of lists
+# Blood and Muscle
+result_blood_muscle <-
+  perform_fishers_test(blood_size, muscle_size, overlap_blood_muscle, total_genes)
+cat("Results for Blood and Muscle:\n")
+print(result_blood_muscle$table)
+cat("P-value:", result_blood_muscle$p_value, "\n\n")
+
+# Muscle and GWAS
+result_muscle_gwas <-
+  perform_fishers_test(muscle_size,
+                       GWAS_CVD_size,
+                       overlap_muscle_GWAS_CVD,
+                       total_genes)
+cat("Results for Muscle and GWAS:\n")
+print(result_muscle_gwas$table)
+cat("P-value:", result_muscle_gwas$p_value, "\n\n")
+
+# Blood and GWAS
+result_blood_gwas <-
+  perform_fishers_test(blood_size,
+                       GWAS_CVD_size,
+                       overlap_blood_GWAS_CVD,
+                       total_genes)
+cat("Results for Blood and GWAS:\n")
+print(result_blood_gwas$table)
+cat("P-value:", result_blood_gwas$p_value, "\n\n")
+
+# Blood and GWAS_Vo2max_SNP
+result_blood_gwas_vo2max_snp <-
+  perform_fishers_test(blood_size,
+                       gwas_vo2max_size,
+                       overlap_blood_GWAS_CVD_vo2max_snp,
+                       total_genes)
+cat("Results for Blood and GWAS_Vo2max_SNP:\n")
+print(result_blood_gwas_vo2max_snp$table)
+cat("P-value:", result_blood_gwas_vo2max_snp$p_value, "\n\n")
+
+# Muscle and GWAS_Vo2max_SNP
+result_muscle_gwas_vo2max_snp <-
+  perform_fishers_test(
+    muscle_size,
+    gwas_vo2max_size,
+    overlap_muscle_GWAS_CVD_vo2max_snp,
+    total_genes
+  )
+cat("Results for Muscle and GWAS_Vo2max_SNP:\n")
+print(result_muscle_gwas_vo2max_snp$table)
+cat("P-value:", result_muscle_gwas_vo2max_snp$p_value, "\n\n")
+
+# GWAS and GWAS_Vo2max_SNP
+result_gwas_gwas_vo2max_snp <-
+  perform_fishers_test(GWAS_CVD_size,
+                       gwas_vo2max_size,
+                       overlap_gwas_gwas_vo2max_snp,
+                       total_genes)
+cat("Results for GWAS and GWAS_Vo2max_SNP:\n")
+print(result_gwas_gwas_vo2max_snp$table)
+cat("P-value:", result_gwas_gwas_vo2max_snp$p_value, "\n\n")
+
+# END OF FISHE’S EXACT SCRIPT
