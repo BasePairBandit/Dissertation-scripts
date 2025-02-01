@@ -1,3 +1,8 @@
+###LIMMA is a software package available in the Bioconductor project that can be used for analysing data from gene expression experiments such as microarray or RNA-sequencing technologies 29. A core capability of LIMMA is the use of linear models to assess differential expression in the context of multi-factor designed experiments, the ability to borrow information across genes makes the analysis stable even for experiments with a small number of arrays.
+The LIMMA script performs differential expression analysis on gene expression data, using phenotype variables to identify significant genes and visualize the results. Initially, it reads expression and phenotype data from CSV files, ensuring that only samples with complete phenotype data are included. It aligns the expression data with the phenotype data based on sample IDs. A design matrix is created for linear modelling, incorporating the primary phenotype of interest and covariates such as age and BMI. Using the limma package, the script fits linear models to the data, applies contrasts, and performs empirical bayes moderation to refine the variance estimates. It generates a topTable containing p-values, log-fold changes, and other statistics, which are saved to a CSV file. Significant genes are filtered based on adjusted p-values and saved separately. An MA plot is produced to visualize the overall distribution of log-fold changes versus average expression. The script then creates a volcano plot with ggplot2, highlighting significant genes and annotating the top 100 most significant ones. 
+Overall, the script integrates statistical analysis with visualizations to comprehensively assess and present differential gene expression results.###
+
+
 #LIMMA SCRIPT
 
 #Clear the workspace
