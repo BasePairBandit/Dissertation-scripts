@@ -1,16 +1,129 @@
-# Dissertation-scripts
-7 scripts I used in my MSc research project
+# Dissertation Scripts-Msc Genomic medicine
 
-#LIMMA Script
-The LIMMA script performs differential expression analysis on gene expression data, using phenotype variables to identify significant genes and visualize the results. Initially, it reads expression and phenotype data from CSV files, ensuring that only samples with complete phenotype data are included. It aligns the expression data with the phenotype data based on sample IDs. A design matrix is created for linear modelling, incorporating the primary phenotype of interest and covariates such as age and BMI. Using the limma package, the script fits linear models to the data, applies contrasts, and performs empirical bayes moderation to refine the variance estimates. It generates a topTable containing p-values, log-fold changes, and other statistics, which are saved to a CSV file. Significant genes are filtered based on adjusted p-values and saved separately. An MA plot is produced to visualize the overall distribution of log-fold changes versus average expression. The script then creates a volcano plot with ggplot2, highlighting significant genes and annotating the top 100 most significant ones. 
-Overall, the script integrates statistical analysis with visualizations to comprehensively assess and present differential gene expression results.
-The full LIMMA script used for the analysis is provided in appendix I. A summary of the main features of the script are listed below.
+This repository contains seven analysis scripts developed during my MSc research project.
+The scripts were used to analyse gene expression datasets, identify differentially expressed genes, test associations between gene sets, and interpret biological pathways through enrichment analysis.
 
-#Fisher's Exact Test script
-The Fisher’s test script is designed to perform a Fisher’s Exact Test for associations between gene lists by comparing pairs of lists. The function “perform_fishers_test” creates a contingency table for each pair and then calculates the p-value using Fisher’s Exact Test. For each pair, Fisher’s Exact Test will return a p-value: if the p-value is below 0.05, it suggests a statistically significant association while a p-value above the threshold indicates no significant association, implying any overlap could be due to random chance, therefore retaining the null hypothesis of independence. 
+The analytical workflow integrates statistical modelling, pathway analysis, and data visualisation to identify biologically meaningful patterns in gene expression data.
 
-#Cluster profilr script
-Gene Set Enrichment Analysis (GSEA) is crucial for interpreting high-throughput omics data and identifying dysregulated biological processes in specific conditions or diseases. However, a redundancy problem arises due to the overlap of genes across multiple pathways, leading to highly correlated and redundant pathways. This results in an overwhelming number of significant pathways, complicating the interpretation of GSEA results. To address this, it is necessary to aggregate similar pathways and analyse their interactions to simplify and enhance the interpretation of the data. 
-Clusterprofiler is an R package which helps in interpreting GSEA results 66. The Clusterprofiler package employs various metrics to assess similarities between pathway gene sets, identifies clusters of related pathways, and assigns meaningful biological names to these clusters. Additionally, it creates an interactive visual representation of an enrichment network, allowing users to explore and clarify the biological processes influenced by experimental conditions. 
-The four gene lists are processed using the Clusterprofiler script to identify and help visualize the enrichment networks effectively. This allows the verification of overlap of enrichment networks between the four gene lists.
+## Research Overview
 
+High-throughput transcriptomic experiments generate large gene expression datasets that require robust statistical and computational methods for interpretation.
+
+This project aimed to:
+
+Identify differentially expressed genes between biological conditions
+Assess statistical associations between gene lists
+Interpret biological meaning using pathway enrichment analysis
+Reduce redundancy in pathway results through network-based clustering
+
+The scripts in this repository support these objectives using widely adopted bioinformatics tools and statistical frameworks in R.
+
+## **Scripts**
+LIMMA Script – Differential Gene Expression Analysis
+
+This script performs differential expression analysis using the LIMMA (Linear Models for Microarray Data) framework.
+
+Key Steps
+Reads gene expression and phenotype datasets from CSV files
+Filters samples with complete phenotype data
+Aligns expression and phenotype datasets by sample ID
+Constructs a design matrix including:
+Primary phenotype variable
+Covariates such as age and BMI
+Fits linear models using limma
+Applies empirical Bayes moderation to improve variance estimates
+Generates ranked gene results
+Outputs
+Differential expression results (topTable)
+Log-fold change values
+Adjusted p-values (FDR corrected)
+CSV files containing:
+All genes
+Significant genes
+Visualisations
+
+The script also generates:
+
+MA plot
+Volcano plot
+Annotation of the top 100 significant genes
+
+These visualisations help interpret gene expression changes and highlight biologically relevant genes.
+
+Fisher’s Exact Test Script – Gene List Association Analysis
+
+This script evaluates statistical relationships between gene lists.
+
+Function
+
+perform_fishers_test
+
+Method
+
+For each pair of gene lists:
+
+A contingency table is created
+Fisher’s Exact Test is applied
+A p-value is returned
+Interpretation
+P-value	Interpretation
+< 0.05	Significant association between gene lists
+≥ 0.05	No significant association (overlap likely random)
+
+This analysis helps determine whether overlapping genes between datasets occur more frequently than expected by chance.
+
+ClusterProfiler Script – Pathway Enrichment and Network Analysis
+
+Gene Set Enrichment Analysis (GSEA) is used to identify biological pathways associated with differentially expressed genes.
+
+However, enrichment analysis often produces large numbers of overlapping pathways, making interpretation difficult.
+
+This script uses the ClusterProfiler R package to improve interpretability.
+
+Key Features
+
+ClusterProfiler:
+
+Calculates similarity between pathway gene sets
+Clusters related pathways
+Assigns descriptive biological labels to clusters
+Generates enrichment network visualisations
+Analysis Performed
+
+Four gene lists were analysed to:
+
+Identify enriched biological pathways
+Cluster related pathways
+Visualise pathway interaction networks
+Compare enrichment overlap across gene lists
+
+This approach simplifies complex enrichment outputs and highlights the key biological processes associated with the experimental condition.
+
+Technologies Used
+R
+LIMMA
+ClusterProfiler
+ggplot2
+Bioconductor packages
+Statistical genomics workflows
+Example Outputs
+
+The scripts generate several visual outputs commonly used in transcriptomic studies:
+
+Volcano plots
+MA plots
+Enrichment network plots
+Ranked differential expression tables
+
+These outputs help identify significant genes and biologically relevant pathways.
+
+Reproducibility
+
+These scripts were written to support the analyses performed in the MSc dissertation project.
+They may require modification for different datasets or experimental designs.
+
+Typical inputs include:
+
+Gene expression matrix (CSV)
+Phenotype metadata (CSV)
+Gene lists for enrichment analysis
